@@ -1,0 +1,26 @@
+apiVersion: aicore.sap.com/v1alpha1
+kind: Deployment
+metadata:
+  name: cpi-triage-ai-service
+spec:
+  scenario: cpi-triage-ai
+  executable: cpi-triage-ai-trainer
+  dockerImage: <your-registry>/<repo>:cpi-triage-ai-serve
+  inputArtifacts:
+    - name: cpimodel
+      kind: model
+      path: /app/model
+  ports:
+    - name: http
+      port: 8080
+  readinessProbe:
+    path: /health
+    port: 8080
+  env:
+    - name: MODEL_PATH
+      value: /app/model/model.pkl
+    - name: VEC_PATH
+      value: /app/model/vectorizer.pkl
+    - name: AWS_DEFAULT_REGION
+      value: us-east-1
+  command: ["uvicorn","src.serve_cpi_btpcore:app","--host","0.0.0.0","--port","8080"]

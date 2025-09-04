@@ -1,0 +1,64 @@
+apiVersion: argoproj.io/v1alpha1
+kind: WorkflowTemplate
+metadata:
+  name: cpi-triage-ai-train
+  annotations:
+    scenarios.ai.sap.com/name: "CPI-Triage-AI"
+    scenarios.ai.sap.com/description: "Train a simple CPI log classifier"
+    executables.ai.sap.com/name: "Train CPI classifier"
+    executables.ai.sap.com/description: "Scikit-learn (LR) with DictVectorizer"
+    artifacts.ai.sap.com/cpidataset.kind: "dataset"
+    artifacts.ai.sap.com/cpimodel.kind: "model"
+  labels:
+    scenarios.ai.sap.com/id: "cpi-triage-ai"
+    ai.sap.com/version: "4.0"
+spec:
+  imagePullSecrets:
+    - name: <your-docker-secret>
+  entrypoint: pipeline
+  arguments:
+    parameters:
+      - name: TARGET_COLUMN
+        value: "CUSTOM_STATUS"
+      - name: S3_DATA_URI
+        value: ""
+      - name: S3_MODEL_URI
+        value: ""
+      - name: AWS_DEFAULT_REGION
+        value: "us-east-1"
+  templates:
+  - name: pipeline
+    inputs:
+      artifacts:
+        - name: cpidataset
+          path: /app/data/
+          optional: true
+    outputs:
+      artifacts:
+        - name: cpimodel
+          globalName: cpimodel
+          path: /app/model/
+          archive:
+            none: {}
+    container:
+      image: <your-registry>/<repo>:cpi-triage-ai-train
+      command: ["/bin/sh","-c"]
+      env:
+        - name: TARGET_COLUMN
+          value: "{{workflow.parameters.TARGET_COLUMN}}"
+        - name: S3_DATA_URI
+          value: "{{workflow.parameters.S3_DATA_URI}}"
+        - name: S3_MODEL_URI
+          value: "{{workflow.parameters.S3_MODEL_URI}}"
+        - name: AWS_DEFAULT_REGION
+          value: "{{workflow.parameters.AWS_DEFAULT_REGION}}"
+        - name: DATA_PATH
+          value: "/app/data/cpi_logs.csv"
+        - name: MODEL_DIR
+          value: "/app/model"
+        - name: MODEL_PATH
+          value: "/app/model/model.pkl"
+        - name: VEC_PATH
+          value: "/app/model/vectorizer.pkl"
+      args:
+        - "python /app/src/train_cpi_btpcore.py"
