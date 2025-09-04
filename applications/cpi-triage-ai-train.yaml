@@ -4,15 +4,65 @@ metadata:
   name: cpi-triage-ai-train
   annotations:
     scenarios.ai.sap.com/name: "CPI-Triage-AI"
+    scenarios.ai.sap.com/description: "Train a simple CPI log classifier"
     executables.ai.sap.com/name: "Train CPI classifier"
-    artifacts.ai.sap.com/cpidataset.kind: "dataset"
-    artifacts.ai.sap.com/cpimodel.kind: "model"
+    executables.ai.sap.com/description: "Scikit-learn + DictVectorizer"
+    artifacts.ai.sap.com/cpidataset.kind: "dataset"   # input hint
+    artifacts.ai.sap.com/cpimodel.kind: "model"       # output hint
   labels:
     scenarios.ai.sap.com/id: "cpi-triage-ai"
+    ai.sap.com/version: "4.0"
 spec:
+  # Optional: only if your runtime needs a registry secret
+  # imagePullSecrets:
+  #   - name: <your-docker-secret>
+
   entrypoint: pipeline
+  arguments:
+    parameters:
+      - name: TARGET_COLUMN
+        value: "CUSTOM_STATUS"
+      - name: S3_DATA_URI
+        value: ""                        # e.g. s3://bucket/path/cpi_logs.csv
+      - name: S3_MODEL_URI
+        value: ""                        # e.g. s3://bucket/models/cpi-triage-ai/model.pkl
+      - name: AWS_DEFAULT_REGION
+        value: "us-east-1"
+
   templates:
   - name: pipeline
+    inputs:
+      artifacts:
+        - name: cpidataset               # optional Dataset artifact (CSV)
+          path: /app/data/
+          optional: true
+    outputs:
+      artifacts:
+        - name: cpimodel                 # produced model artifact
+          globalName: cpimodel
+          path: /app/model/
+          archive:
+            none: {}
     container:
       image: <your-registry>/<repo>:cpi-triage-ai-train
-      command: ["python","/app/src/train_cpi_btpcore.py"]
+      command: ["/bin/sh","-c"]
+      env:
+        - name: TARGET_COLUMN
+          value: "{{workflow.parameters.TARGET_COLUMN}}"
+        - name: S3_DATA_URI
+          value: "{{workflow.parameters.S3_DATA_URI}}"
+        - name: S3_MODEL_URI
+          value: "{{workflow.parameters.S3_MODEL_URI}}"
+        - name: AWS_DEFAULT_REGION
+          value: "{{workflow.parameters.AWS_DEFAULT_REGION}}"
+        # Local fallbacks when using the attached Dataset artifact:
+        - name: DATA_PATH
+          value: "/app/data/cpi_logs.csv"
+        - name: MODEL_DIR
+          value: "/app/model"
+        - name: MODEL_PATH
+          value: "/app/model/model.pkl"
+        - name: VEC_PATH
+          value: "/app/model/vectorizer.pkl"
+      args:
+        - "python /app/src/train_cpi_btpcore.py"
