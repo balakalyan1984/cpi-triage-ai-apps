@@ -4,68 +4,16 @@ metadata:
   name: cpi-triage-ai-daily-summary
   annotations:
     scenarios.ai.sap.com/name: "CPI-Triage-AI"
-    scenarios.ai.sap.com/description: "Daily prediction summary over CPI logs"
     executables.ai.sap.com/name: "Daily summary job"
-    executables.ai.sap.com/description: "Predict all logs, write summary.json and bucket_summary.csv"
     artifacts.ai.sap.com/cpidataset.kind: "dataset"
     artifacts.ai.sap.com/cpimodel.kind: "model"
     artifacts.ai.sap.com/summaryout.kind: "dataset"
   labels:
     scenarios.ai.sap.com/id: "cpi-triage-ai"
-    ai.sap.com/version: "4.0"
 spec:
-  imagePullSecrets:
-    - name: <your-docker-secret>
   entrypoint: pipeline
-  arguments:
-    parameters:
-      - name: S3_DATA_URI
-        value: ""
-      - name: AWS_DEFAULT_REGION
-        value: "us-east-1"
-      - name: SLACK_WEBHOOK_URL
-        value: ""
-      - name: TEAMS_WEBHOOK_URL
-        value: ""
-      - name: DASHBOARD_URL
-        value: ""
   templates:
   - name: pipeline
-    inputs:
-      artifacts:
-        - name: cpidataset
-          path: /app/data/
-          optional: true
-        - name: cpimodel
-          path: /app/model/
-    outputs:
-      artifacts:
-        - name: summaryout
-          globalName: summaryout
-          path: /app/out/
-          archive:
-            none: {}
     container:
       image: <your-registry>/<repo>:cpi-triage-ai-train
-      command: ["/bin/sh","-c"]
-      env:
-        - name: DATA_PATH
-          value: "/app/data/cpi_logs.csv"
-        - name: MODEL_PATH
-          value: "/app/model/model.pkl"
-        - name: VEC_PATH
-          value: "/app/model/vectorizer.pkl"
-        - name: S3_DATA_URI
-          value: "{{workflow.parameters.S3_DATA_URI}}"
-        - name: AWS_DEFAULT_REGION
-          value: "{{workflow.parameters.AWS_DEFAULT_REGION}}"
-        - name: SLACK_WEBHOOK_URL
-          value: "{{workflow.parameters.SLACK_WEBHOOK_URL}}"
-        - name: TEAMS_WEBHOOK_URL
-          value: "{{workflow.parameters.TEAMS_WEBHOOK_URL}}"
-        - name: DASHBOARD_URL
-          value: "{{workflow.parameters.DASHBOARD_URL}}"
-        - name: OUT_DIR
-          value: "/app/out"
-      args:
-        - "python /app/src/summary_job.py"
+      command: ["python","/app/src/summary_job.py"]
